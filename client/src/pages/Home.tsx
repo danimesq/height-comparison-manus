@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Share2, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Share2, Edit2, Download } from 'lucide-react';
 
 // 🎨 Modern Minimalist with Playful Accents
 // This page displays a height comparison visualization with vibrant silhouettes
@@ -39,6 +39,9 @@ export default function Home() {
   const [newColor, setNewColor] = useState('#5B9BD5');
   const [newGender, setNewGender] = useState<'male' | 'female' | 'child'>('female');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState('');
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importError, setImportError] = useState('');
 
   // 📱 Load from URL parameters on mount
   useEffect(() => {
@@ -137,6 +140,53 @@ export default function Home() {
     setPeople([...people, newPerson]);
   };
 
+  // 🔗 Parse multmetric.com URL and extract people data
+  const parseMultmetricUrl = (url: string) => {
+    try {
+      setImportError('');
+      const urlObj = new URL(url);
+      const params = urlObj.searchParams;
+      const importedPeople: Person[] = [];
+      
+      let index = 0;
+      while (params.has(`person${index}`)) {
+        const personData = params.get(`person${index}`);
+        if (personData) {
+          const parts = personData.split('-');
+          if (parts.length >= 3) {
+            // 🧬 Parse gender code: 1=female, 2=male, 3=child
+            const genderCode = parts[0];
+            const gender = genderCode.includes('1') ? 'female' : genderCode.includes('2') ? 'male' : 'child';
+            const name = decodeURIComponent(parts[1]);
+            const height = parseFloat(parts[2]);
+            const color = parts[3] || '#5B9BD5';
+            
+            importedPeople.push({
+              id: `person-${Date.now()}-${index}`,
+              name,
+              height,
+              color,
+              gender,
+            });
+          }
+        }
+        index++;
+      }
+      
+      if (importedPeople.length === 0) {
+        setImportError('❌ Nenhuma pessoa encontrada na URL. Verifica se é um link válido do multmetric.com!');
+        return;
+      }
+      
+      // 🎉 Add imported people to existing list
+      setPeople([...people, ...importedPeople]);
+      setImportUrl('');
+      setIsImportDialogOpen(false);
+    } catch (error) {
+      setImportError('❌ Erro ao processar a URL. Verifica se é um link válido!');
+    }
+  };
+
   const shareResults = () => {
     const url = window.location.href;
     if (navigator.share) {
@@ -148,6 +198,16 @@ export default function Home() {
       navigator.clipboard.writeText(url);
       alert('Link copied to clipboard!');
     }
+  };
+
+  // 📋 Copy multmetric URL format to clipboard for sharing
+  const copyMultmetricFormat = () => {
+    const multmetricUrl = window.location.href.replace(
+      window.location.origin,
+      'https://multmetric.com'
+    );
+    navigator.clipboard.writeText(multmetricUrl);
+    alert('Multmetric URL copied!');
   };
 
   // 📏 Calculate scale: 1cm = 2.02px (based on reference)
@@ -166,14 +226,52 @@ export default function Home() {
               </h1>
               <p className="text-gray-600 mt-1">Compare heights visually</p>
             </div>
-            <Button
-              onClick={shareResults}
-              disabled={people.length === 0}
-              className="gap-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-            >
-              <Share2 size={18} />
-              Share
-            </Button>
+            <div className="flex gap-2">
+              <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    className="gap-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
+                  >
+                    <Download size={18} />
+                    Import URL
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>📥 Import from multmetric.com</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Multmetric URL</label>
+                      <Input
+                        value={importUrl}
+                        onChange={(e) => setImportUrl(e.target.value)}
+                        placeholder="https://multmetric.com/?person0=..."
+                        className="mt-1"
+                      />
+                      {importError && (
+                        <p className="text-sm text-red-500 mt-2">{importError}</p>
+                      )}
+                    </div>
+                    <Button
+                      onClick={() => parseMultmetricUrl(importUrl)}
+                      disabled={!importUrl}
+                      className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
+                    >
+                      Import People
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Button
+                onClick={shareResults}
+                disabled={people.length === 0}
+                className="gap-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+              >
+                <Share2 size={18} />
+                Share
+              </Button>
+            </div>
           </div>
         </div>
       </header>
