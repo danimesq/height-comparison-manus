@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Share2, Edit2, Download, Moon, Sun, FileJson, FileText, Copy } from 'lucide-react';
+import { Plus, Trash2, Share2, Edit2, Download, Moon, Sun, FileJson, FileText, Copy, Image } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
+import html2canvas from 'html2canvas';
 
 // 🎨 Modern Minimalist with Playful Accents
 // This page displays a height comparison visualization with vibrant silhouettes
@@ -45,6 +46,7 @@ export default function Home() {
   const [importError, setImportError] = useState('');
   const { theme, toggleTheme } = useTheme();
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const comparisonRef = useRef<HTMLDivElement>(null);
 
   // 🌙 Load theme preference from localStorage
   useEffect(() => {
@@ -265,6 +267,27 @@ export default function Home() {
     alert('URL copied to clipboard!');
   };
 
+  // 🖼️ Export as PNG
+  const exportAsPNG = async () => {
+    if (!comparisonRef.current || people.length === 0) return;
+    try {
+      const canvas = await html2canvas(comparisonRef.current, {
+        backgroundColor: theme === 'dark' ? '#111827' : '#ffffff',
+        scale: 2,
+        logging: false,
+      });
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = `height-comparison-${new Date().toISOString().split('T')[0]}.png`;
+      link.click();
+      setIsExportDialogOpen(false);
+      alert('✅ PNG exportado com sucesso!');
+    } catch (error) {
+      console.error('Error exporting PNG:', error);
+      alert('❌ Erro ao exportar PNG. Tenta novamente!');
+    }
+  };
+
   // 📏 Calculate scale: 1cm = 2.02px (based on reference)
   const maxHeight = Math.max(...people.map(p => p.height), 200);
   const scale = 400 / maxHeight;
@@ -354,6 +377,13 @@ export default function Home() {
                     >
                       <Copy size={18} />
                       Copy URL Code
+                    </Button>
+                    <Button
+                      onClick={exportAsPNG}
+                      className="w-full justify-start gap-2 bg-rose-500 hover:bg-rose-600"
+                    >
+                      <Image size={18} />
+                      Export as PNG
                     </Button>
                   </div>
                 </DialogContent>
@@ -487,6 +517,7 @@ export default function Home() {
           <Card className={`overflow-hidden shadow-lg border-0 ${theme === 'dark' ? 'bg-gray-800' : ''}`}>
             {/* 💙 Light Blue Background for Comparison Box */}
             <div
+              ref={comparisonRef}
               className="relative p-8 min-h-96"
               style={{
                 background: theme === 'dark' 
