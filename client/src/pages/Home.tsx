@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Share2, Edit2, Download } from 'lucide-react';
+import { Plus, Trash2, Share2, Edit2, Download, Moon, Sun, FileJson, FileText, Copy } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 // 🎨 Modern Minimalist with Playful Accents
 // This page displays a height comparison visualization with vibrant silhouettes
@@ -42,6 +43,16 @@ export default function Home() {
   const [importUrl, setImportUrl] = useState('');
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importError, setImportError] = useState('');
+  const { theme, toggleTheme } = useTheme();
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+
+  // 🌙 Load theme preference from localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('height-comparison-theme') || 'light';
+    if (savedTheme === 'dark' && theme !== 'dark' && toggleTheme) {
+      toggleTheme();
+    }
+  }, []);
 
   // 📱 Load from URL parameters on mount
   useEffect(() => {
@@ -210,23 +221,67 @@ export default function Home() {
     alert('Multmetric URL copied!');
   };
 
+  // 🌙 Handle theme toggle and save to localStorage
+  const handleThemeToggle = () => {
+    if (toggleTheme) {
+      toggleTheme();
+      const newTheme = theme === 'light' ? 'dark' : 'light';
+      localStorage.setItem('height-comparison-theme', newTheme);
+    }
+  };
+
+  // 📊 Export as CSV
+  const exportAsCSV = () => {
+    if (people.length === 0) return;
+    const headers = ['Name', 'Height (cm)', 'Gender', 'Color'];
+    const rows = people.map(p => [p.name, p.height, p.gender, p.color]);
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'height-comparison.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // 📋 Export as JSON
+  const exportAsJSON = () => {
+    if (people.length === 0) return;
+    const json = JSON.stringify(people, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'height-comparison.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // 🔗 Copy URL code (multmetric format)
+  const copyUrlCode = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+    alert('URL copied to clipboard!');
+  };
+
   // 📏 Calculate scale: 1cm = 2.02px (based on reference)
   const maxHeight = Math.max(...people.map(p => p.height), 200);
   const scale = 400 / maxHeight;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-indigo-50">
+    <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-900' : 'bg-gradient-to-br from-white via-blue-50 to-indigo-50'}`}>
       {/* 🎨 Header Section */}
-      <header className="border-b border-gray-200 bg-white/80 backdrop-blur-sm sticky top-0 z-40">
+      <header className={`border-b ${theme === 'dark' ? 'border-gray-700 bg-gray-800/80' : 'border-gray-200 bg-white/80'} backdrop-blur-sm sticky top-0 z-40`}>
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold text-gray-900" style={{ fontFamily: "'Poppins', sans-serif" }}>
+              <h1 className={`text-4xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`} style={{ fontFamily: "'Poppins', sans-serif" }}>
                 Height Comparison 📏
               </h1>
-              <p className="text-gray-600 mt-1">Compare heights visually</p>
+              <p className={theme === 'dark' ? 'text-gray-400 mt-1' : 'text-gray-600 mt-1'}>Compare heights visually</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
                 <DialogTrigger asChild>
                   <Button
@@ -263,6 +318,47 @@ export default function Home() {
                   </div>
                 </DialogContent>
               </Dialog>
+              
+              <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    disabled={people.length === 0}
+                    className="gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                  >
+                    <FileText size={18} />
+                    Export
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>📤 Export Comparison</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <Button
+                      onClick={exportAsCSV}
+                      className="w-full justify-start gap-2 bg-blue-500 hover:bg-blue-600"
+                    >
+                      <FileText size={18} />
+                      Export as CSV
+                    </Button>
+                    <Button
+                      onClick={exportAsJSON}
+                      className="w-full justify-start gap-2 bg-indigo-500 hover:bg-indigo-600"
+                    >
+                      <FileJson size={18} />
+                      Export as JSON
+                    </Button>
+                    <Button
+                      onClick={copyUrlCode}
+                      className="w-full justify-start gap-2 bg-purple-500 hover:bg-purple-600"
+                    >
+                      <Copy size={18} />
+                      Copy URL Code
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              
               <Button
                 onClick={shareResults}
                 disabled={people.length === 0}
@@ -270,6 +366,14 @@ export default function Home() {
               >
                 <Share2 size={18} />
                 Share
+              </Button>
+              
+              <Button
+                onClick={handleThemeToggle}
+                className="gap-2 bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700"
+              >
+                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+                {theme === 'light' ? 'Dark' : 'Light'}
               </Button>
             </div>
           </div>
@@ -298,7 +402,7 @@ export default function Home() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>{editingId ? 'Edit Person' : 'Add New Person'}</DialogTitle>
+                <DialogTitle>{editingId ? '✏️ Edit Person' : '➕ Add Person'}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
@@ -306,7 +410,7 @@ export default function Home() {
                   <Input
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Enter name"
+                    placeholder="Person name"
                     className="mt-1"
                   />
                 </div>
@@ -316,21 +420,9 @@ export default function Home() {
                     type="number"
                     value={newHeight}
                     onChange={(e) => setNewHeight(e.target.value)}
-                    placeholder="Enter height"
+                    placeholder="170"
                     className="mt-1"
                   />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Gender</label>
-                  <select
-                    value={newGender}
-                    onChange={(e) => setNewGender(e.target.value as any)}
-                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  >
-                    <option value="female">Female</option>
-                    <option value="male">Male</option>
-                    <option value="child">Child</option>
-                  </select>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Color</label>
@@ -339,12 +431,33 @@ export default function Home() {
                       type="color"
                       value={newColor}
                       onChange={(e) => setNewColor(e.target.value)}
-                      className="w-12 h-10 rounded-lg cursor-pointer"
+                      className="w-12 h-10 rounded cursor-pointer"
                     />
-                    <Input value={newColor} onChange={(e) => setNewColor(e.target.value)} className="flex-1" />
+                    <Input
+                      value={newColor}
+                      onChange={(e) => setNewColor(e.target.value)}
+                      placeholder="#5B9BD5"
+                      className="flex-1"
+                    />
                   </div>
                 </div>
-                <Button onClick={addPerson} className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Gender</label>
+                  <select
+                    value={newGender}
+                    onChange={(e) => setNewGender(e.target.value as 'male' | 'female' | 'child')}
+                    className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                    <option value="child">Child</option>
+                  </select>
+                </div>
+                <Button
+                  onClick={addPerson}
+                  disabled={!newName || !newHeight}
+                  className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600"
+                >
                   {editingId ? 'Update' : 'Add'} Person
                 </Button>
               </div>
@@ -353,7 +466,7 @@ export default function Home() {
 
           {/* Preset People */}
           <div className="lg:col-span-3">
-            <p className="text-sm font-medium text-gray-700 mb-2">Quick Add:</p>
+            <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Quick Add:</p>
             <div className="flex flex-wrap gap-2">
               {PRESET_PEOPLE.map((preset) => (
                 <Button
@@ -371,23 +484,47 @@ export default function Home() {
 
         {/* 📊 Comparison Area */}
         {people.length > 0 ? (
-          <Card className="overflow-hidden shadow-lg border-0">
+          <Card className={`overflow-hidden shadow-lg border-0 ${theme === 'dark' ? 'bg-gray-800' : ''}`}>
             {/* 💙 Light Blue Background for Comparison Box */}
             <div
               className="relative p-8 min-h-96"
               style={{
-                background: 'linear-gradient(135deg, #e6f2f9 0%, #d4e9f7 100%)',
+                background: theme === 'dark' 
+                  ? 'linear-gradient(135deg, #1f2937 0%, #111827 100%)'
+                  : 'linear-gradient(135deg, #e6f2f9 0%, #d4e9f7 100%)',
                 borderRadius: '12px',
               }}
             >
               {/* Height Scale */}
-              <div className="absolute left-8 top-8 bottom-8 flex flex-col justify-between text-xs text-gray-500 font-medium">
+              <div className={`absolute left-8 top-8 bottom-8 flex flex-col justify-between text-xs font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                 {[200, 150, 100, 50, 0].map((height) => (
                   <div key={height} className="relative">
                     <span>{height}cm</span>
                   </div>
                 ))}
               </div>
+
+              {/* 🎯 Dotted Grid Lines */}
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                style={{ opacity: 0.2 }}
+              >
+                {[200, 150, 100, 50, 0].map((cm) => {
+                  const yPos = ((200 - cm) / 200) * 100;
+                  return (
+                    <line
+                      key={`gridline-${cm}`}
+                      x1="0%"
+                      y1={`${yPos}%`}
+                      x2="100%"
+                      y2={`${yPos}%`}
+                      stroke={theme === 'dark' ? '#fff' : '#999'}
+                      strokeWidth="1"
+                      strokeDasharray="5,5"
+                    />
+                  );
+                })}
+              </svg>
 
               {/* Silhouettes Container */}
               <div
@@ -400,8 +537,8 @@ export default function Home() {
                   <div key={person.id} className="flex flex-col items-center gap-2 group">
                     {/* Person Info */}
                     <div className="text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <p className="font-bold text-sm text-gray-900">{person.name}</p>
-                      <p className="text-xs text-gray-600">{person.height}cm</p>
+                      <p className={`font-bold text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{person.name}</p>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{person.height}cm</p>
                     </div>
 
                     {/* Silhouette */}
@@ -419,8 +556,8 @@ export default function Home() {
 
                     {/* Label Below */}
                     <div className="text-center mt-2">
-                      <p className="font-semibold text-sm text-gray-900">{person.name}</p>
-                      <p className="text-xs text-gray-600">{person.height}cm</p>
+                      <p className={`font-semibold text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{person.name}</p>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{person.height}cm</p>
                       <Button
                         onClick={() => removePerson(person.id)}
                         variant="ghost"
@@ -435,46 +572,54 @@ export default function Home() {
               </div>
 
               {/* Baseline */}
-              <div className="absolute bottom-8 left-8 right-8 border-t-2 border-gray-400 opacity-50" />
+              <div className={`absolute bottom-8 left-8 right-8 border-t-2 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-400'} opacity-50`} />
             </div>
           </Card>
         ) : (
-          <Card className="p-12 text-center border-2 border-dashed border-gray-300">
+          <Card className={`p-12 text-center border-2 border-dashed ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-300'}`}>
             <div className="text-center">
               <img
                 src="https://d2xsxph8kpxj0f.cloudfront.net/310519663120103123/JHEdbNVPzBsuL9JgseAugh/add-person-illustration-EAjKKS5Ha9ccweWZnLViXD.webp"
                 alt="Add people"
                 className="w-32 h-32 mx-auto mb-4 opacity-80"
               />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">No people added yet</h2>
-              <p className="text-gray-600 mb-4">Add people to start comparing heights!</p>
+              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>No people added yet</h2>
+              <p className={theme === 'dark' ? 'text-gray-400 mb-4' : 'text-gray-600 mb-4'}>Add people to start comparing heights!</p>
             </div>
           </Card>
         )}
 
-        {/* 📊 Stats Section */}
+        {/* 📊 Statistics */}
         {people.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-            <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border-0">
-              <p className="text-sm text-gray-600 font-medium">Tallest</p>
-              <p className="text-2xl font-bold text-gray-900">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+            <Card className={`p-6 ${theme === 'dark' ? 'bg-gray-800' : ''}`}>
+              <h3 className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Tallest</h3>
+              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                 {people.reduce((max, p) => p.height > max.height ? p : max).name}
               </p>
-              <p className="text-sm text-gray-600">{Math.max(...people.map(p => p.height))}cm</p>
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                {Math.max(...people.map(p => p.height))}cm
+              </p>
             </Card>
-            <Card className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 border-0">
-              <p className="text-sm text-gray-600 font-medium">Shortest</p>
-              <p className="text-2xl font-bold text-gray-900">
+
+            <Card className={`p-6 ${theme === 'dark' ? 'bg-gray-800' : ''}`}>
+              <h3 className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Shortest</h3>
+              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                 {people.reduce((min, p) => p.height < min.height ? p : min).name}
               </p>
-              <p className="text-sm text-gray-600">{Math.min(...people.map(p => p.height))}cm</p>
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                {Math.min(...people.map(p => p.height))}cm
+              </p>
             </Card>
-            <Card className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 border-0">
-              <p className="text-sm text-gray-600 font-medium">Average</p>
-              <p className="text-2xl font-bold text-gray-900">
+
+            <Card className={`p-6 ${theme === 'dark' ? 'bg-gray-800' : ''}`}>
+              <h3 className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Average</h3>
+              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                 {(people.reduce((sum, p) => sum + p.height, 0) / people.length).toFixed(1)}cm
               </p>
-              <p className="text-sm text-gray-600">{people.length} people</p>
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                {people.length} people
+              </p>
             </Card>
           </div>
         )}
